@@ -55,6 +55,7 @@ pub mod input;
 pub mod material;
 pub mod math;
 pub mod models;
+pub mod retained;
 pub mod shapes;
 pub mod text;
 pub mod texture;
@@ -238,6 +239,12 @@ struct Context {
 
 #[derive(Clone)]
 enum MiniquadInputEvent {
+    MouseLeave,
+    MouseEnter {
+        btn: MouseButton,
+        x: f32,
+        y: f32,
+    },
     MouseMotion {
         x: f32,
         y: f32,
@@ -285,6 +292,8 @@ impl MiniquadInputEvent {
     fn repeat<T: miniquad::EventHandler>(&self, t: &mut T) {
         use crate::MiniquadInputEvent::*;
         match self {
+            MouseLeave => t.mouse_leave_event(),
+            MouseEnter { btn, x, y } => t.mouse_enter_event(*btn, *x, *y),
             MouseMotion { x, y } => t.mouse_motion_event(*x, *y),
             MouseWheel { x, y } => t.mouse_wheel_event(*x, *y),
             MouseButtonDown { x, y, btn } => t.mouse_button_down_event(*btn, *x, *y),
@@ -624,6 +633,13 @@ impl EventHandler for Stage {
     fn mouse_leave_event(&mut self) {
         let context = get_context();
         context.mouse_released.extend(context.mouse_down.drain());
+        context
+            .input_events
+            .iter_mut()
+            .for_each(|arr| arr.push(MiniquadInputEvent::MouseLeave));
+        if context.update_on.mouse_motion || context.update_on.mouse_up {
+            miniquad::window::schedule_update();
+        }
     }
 
     fn mouse_enter_event(&mut self, btn: MouseButton, x: f32, y: f32) {
@@ -636,7 +652,7 @@ impl EventHandler for Stage {
         context
             .input_events
             .iter_mut()
-            .for_each(|arr| arr.push(MiniquadInputEvent::MouseButtonUp { x, y, btn }));
+            .for_each(|arr| arr.push(MiniquadInputEvent::MouseEnter { x, y, btn }));
         if btn != MouseButton::Unknown {
             context.mouse_down.insert(btn);
             context.mouse_pressed.insert(btn);

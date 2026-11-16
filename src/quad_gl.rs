@@ -651,6 +651,7 @@ impl QuadGl {
     }
 
     pub(crate) fn clear(&mut self, ctx: &mut dyn miniquad::RenderingBackend, color: Color) {
+        crate::retained::end_pass_if_active(ctx);
         let clear = PassAction::clear_color(color.r, color.g, color.b, color.a);
 
         if let Some(current_pass) = self.state.render_pass {
@@ -678,6 +679,9 @@ impl QuadGl {
     }
 
     pub fn draw(&mut self, ctx: &mut dyn miniquad::RenderingBackend, projection: glam::Mat4) {
+        // Immediate geometry must not inherit a retained render pass.
+        crate::retained::end_pass_if_active(ctx);
+
         let white_texture = self.white_texture;
 
         for _ in 0..self.draw_calls.len() - self.draw_calls_bindings.len() {
@@ -855,6 +859,11 @@ impl QuadGl {
         self.state.clip
     }
 
+    /// Whether any immediate geometry is waiting to be submitted.
+    pub(crate) fn has_pending_draw_calls(&self) -> bool {
+        self.draw_calls_count > 0
+    }
+
     pub fn scissor(&mut self, clip: Option<(i32, i32, i32, i32)>) {
         self.state.clip = clip;
     }
@@ -870,6 +879,14 @@ impl QuadGl {
             crate::window::screen_width() as _,
             crate::window::screen_height() as _,
         ))
+    }
+
+    /// The raw viewport override, if one was set.
+    ///
+    /// Unlike Self::get_viewport, this does not substitute the screen size,
+    /// so callers can save and restore the exact state.
+    pub fn get_viewport_raw(&self) -> Option<(i32, i32, i32, i32)> {
+        self.state.viewport
     }
 
     pub fn push_model_matrix(&mut self, matrix: glam::Mat4) {
@@ -891,8 +908,18 @@ impl QuadGl {
         self.state.pipeline = pipeline;
     }
 
+    /// The material pipeline currently selected, if any.
+    pub fn get_pipeline(&self) -> Option<GlPipeline> {
+        self.state.pipeline
+    }
+
     pub fn draw_mode(&mut self, mode: DrawMode) {
         self.state.draw_mode = mode;
+    }
+
+    /// The current primitive draw mode.
+    pub fn get_draw_mode(&self) -> DrawMode {
+        self.state.draw_mode
     }
 
     pub fn geometry(&mut self, vertices: &[Vertex], indices: &[u16]) {
