@@ -207,6 +207,7 @@ struct Profiler {
 
 impl Profiler {
     fn begin_gpu_query(&mut self, name: &str) {
+        if crate::get_quad_context().info().backend != miniquad::Backend::OpenGl { return; }
         assert!(
             self.active_query.is_none(),
             "Only one active query is allowed by OpenGL"
@@ -230,6 +231,7 @@ impl Profiler {
     }
 
     fn end_gpu_query(&mut self) {
+        if crate::get_quad_context().info().backend != miniquad::Backend::OpenGl { return; }
         let name = self
             .active_query
             .take()
