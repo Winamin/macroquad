@@ -869,6 +869,8 @@ impl Texture2D {
             TextureFormat::Alpha => miniquad::gl::GL_R8,
         };
         unsafe {
+            let mut previous_texture = 0;
+            gl::glGetIntegerv(gl::GL_TEXTURE_BINDING_2D, &mut previous_texture);
             gl::glBindTexture(gl::GL_TEXTURE_2D, raw_id);
             gl::glCopyTexImage2D(
                 gl::GL_TEXTURE_2D,
@@ -880,6 +882,7 @@ impl Texture2D {
                 params.height as _,
                 0,
             );
+            gl::glBindTexture(gl::GL_TEXTURE_2D, previous_texture as _);
         }
     }
 
